@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI脑洞大冒险！你能连对几个？💥</title>
+    <style>
+        /* 主体样式 */
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(to right, #007BFF, #00C6FF);
+            margin: 0;
+            padding: 0;
+            color: white;
+            text-align: center;
+        }
+
+        /* 标题区域 */
+        header {
+            padding: 20px 10px;
+            font-size: 1.5em;
+        }
+        header small {
+            font-size: 0.8em;
+            display: block;
+            margin-top: 5px;
+        }
+
+        /* 游戏区域 */
+        .game-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .left-panel, .right-panel {
+            width: 45%;
+            min-width: 200px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+
+        .item {
+            background: #fff;
+            color: #007BFF;
+            padding: 10px;
+            margin: 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .item.dragging {
+            opacity: 0.5;
+        }
+
+        .feedback {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2em;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .correct {
+            background: #28a745;
+        }
+        .wrong {
+            background: #dc3545;
+        }
+
+        /* 底部按钮 */
+        footer {
+            margin: 20px;
+        }
+        .btn {
+            background: #fff;
+            color: #007BFF;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1em;
+            border-radius: 20px;
+            margin: 10px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .btn:hover {
+            transform: scale(1.1);
+        }
+
+        @media (max-width: 600px) {
+            .game-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            .left-panel, .right-panel {
+                width: 90%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        AI脑洞大冒险！你能连对几个？💥<br>
+        <small>3分钟通关！测试你和AI的距离有多远 🧠⚡</small>
+    </header>
+
+    <div class="game-container">
+        <!-- 左侧选项 -->
+        <div class="left-panel" id="left-panel">
+            <!-- 动态生成题目 -->
+        </div>
+
+        <!-- 右侧答案 -->
+        <div class="right-panel" id="right-panel">
+            <!-- 动态生成答案 -->
+        </div>
+    </div>
+
+    <footer>
+        <button class="btn" onclick="restartGame()">再来一局！这次我要全对！🔁</button>
+        <button class="btn" onclick="shareGame()">生成专属链接 🔗</button>
+    </footer>
+
+    <!-- 反馈提示 -->
+    <div class="feedback correct" id="correctFeedback">答对啦！🎉</div>
+    <div class="feedback wrong" id="wrongFeedback">再想想～💡</div>
+
+    <!-- 音效 -->
+    <audio id="correctSound" src="audio/correct.mp3"></audio>
+    <audio id="wrongSound" src="audio/wrong.mp3"></audio>
+
+    <script>
+        // 题目数据
+        const questions = {
+            "AI翻译": "实时将中文翻译成英文",
+            "图像识别": "识别图片中的物体（如猫/狗）",
+            "语音助手": "通过声音指令控制家电",
+            "AIPPT": "根据用户需求快速生成演示文稿",
+            "扣子平台": "开发聊天机器人、智能客服",
+            "智能客服": "回答用户问题并提供帮助",
+            "自动驾驶": "汽车自动识别路况并行驶",
+            "推荐系统": "短视频平台的个性化推荐",
+            "人脸识别": "扫码支付时的人脸验证",
+            "AIGC": "自动生成图文、代码或视频内容"
+        };
+
+        let currentPairs = {};
+        let correctCount = 0;
+
+        // 初始化游戏
+        function initGame() {
+            const leftPanel = document.getElementById('left-panel');
+            const rightPanel = document.getElementById('right-panel');
+            leftPanel.innerHTML = '';
+            rightPanel.innerHTML = '';
+
+            // 随机打乱题目
+            const shuffled = Object.entries(questions);
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+
+            // 分配左右侧内容
+            shuffled.forEach(([key, value]) => {
+                currentPairs[key] = value;
+                // 左侧选项
+                const div = document.createElement('div');
+                div.className = 'item';
+                div.textContent = key;
+                div.draggable = true;
+                div.ondragstart = dragStart;
+                leftPanel.appendChild(div);
+
+                // 右侧答案
+                const ans = document.createElement('div');
+                ans.className = 'item';
+                ans.textContent = value;
+                ans.ondragover = allowDrop;
+                ans.ondrop = drop;
+                rightPanel.appendChild(ans);
+            });
+        }
+
+        // 拖拽事件
+        let draggedItem = null;
+        function dragStart(e) {
+            draggedItem = e.target;
+        }
+
+        function allowDrop(e) {
+            e.preventDefault();
+        }
+
+        function drop(e) {
+            e.preventDefault();
+            if (draggedItem && this.textContent === currentPairs[draggedItem.textContent]) {
+                playSound('correct');
+                showFeedback('correct');
+                this.style.backgroundColor = '#d4edda';
+                this.style.color = '#155724';
+                this.innerHTML += ' ✅';
+                this.ondragover = null;
+                this.ondrop = null;
+                correctCount++;
+                checkWin();
+            } else {
+                playSound('wrong');
+                showFeedback('wrong');
+            }
+            draggedItem.remove();
+        }
+
+        // 反馈提示
+        function showFeedback(type) {
+            const feedback = document.getElementById(type + 'Feedback');
+            feedback.style.display = 'block';
+            setTimeout(() => {
+                feedback.style.display = 'none';
+            }, 1000);
+        }
+
+        // 播放音效
+        function playSound(sound) {
+            const audio = document.getElementById(sound + 'Sound');
+            audio.currentTime = 0;
+            audio.play();
+        }
+
+        // 通关检测
+        function checkWin() {
+            if (correctCount === Object.keys(questions).length) {
+                alert('全部答对啦！AI世界的大门已为你打开！');
+                localStorage.setItem('score', correctCount);
+            }
+        }
+
+        // 重新开始
+        function restartGame() {
+            correctCount = 0;
+            initGame();
+        }
+
+        // 生成分享链接
+        function shareGame() {
+            const gameId = Math.random().toString(36).substr(2, 9);
+            const url = `${window.location.origin}${window.location.pathname}?id=${gameId}`;
+            navigator.clipboard.writeText(url).then(() => {
+                alert('链接已复制！分享给朋友一起玩吧！');
+            });
+        }
+
+        // 初始化
+        window.onload = () => {
+            initGame();
+            // 加载本地进度
+            const savedScore = localStorage.getItem('score');
+            if (savedScore) {
+                alert(`上次得分：${savedScore}/${Object.keys(questions).length}`);
+            }
+        };
+    </script>
+</body>
+</html>
